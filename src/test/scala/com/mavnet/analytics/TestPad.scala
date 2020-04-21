@@ -18,5 +18,8 @@ object TestPad extends App {
   case class C(e: String, f: B)
   val x = Seq(C("z", B("y", A("x", "w")))).toDS
   x.flattenSchema.show
+  
+  "stringtest".decrement
+  "stringtest".increment
 
 }
