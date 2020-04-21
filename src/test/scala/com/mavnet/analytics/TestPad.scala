@@ -10,7 +10,8 @@ object TestPad extends App {
   Logger.getRootLogger.setLevel(Level.OFF)
   Logger.getLogger("org").setLevel(Level.OFF)
   Logger.getLogger("akka").setLevel(Level.OFF)
-  System.setProperty("hadoop.home.dir", "src/test/resources/")
+  if (System.getProperty("os.name").toLowerCase.contains("win"))
+    System.setProperty("hadoop.home.dir", "src/test/resources/")
   SparkSession.builder().enableHiveSupport().master("local[*]").getOrCreate()
 
   case class A(a: String, b: String)
