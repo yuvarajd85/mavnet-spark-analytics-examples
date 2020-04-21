@@ -31,7 +31,7 @@ package object analytics extends SQLImplicits {
               case _              => traverseSchema(tail, header :+ col(s"${prefix}${field.name}"))
             }
           }
-          case nil => header
+          case Nil => header
         }
       }
       ds.select(traverseSchema(ds.schema.map(_ -> "")): _*)
