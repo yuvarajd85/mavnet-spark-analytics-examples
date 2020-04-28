@@ -1,10 +1,10 @@
 package com.mavnet
 
-import org.apache.spark.sql.{ SQLImplicits, SparkSession }
-import org.apache.spark.sql.{ Column, Dataset, DataFrame }
-import org.apache.spark.sql.types.{ StructField, StructType }
+import org.apache.spark.sql.{ Column, Dataset, DataFrame, SQLImplicits, SparkSession }
 import org.apache.spark.sql.functions.col
-import scala.reflect.runtime.universe.TypeTag
+import org.apache.spark.sql.types.{ StructField, StructType }
+import scala.reflect.runtime.currentMirror
+import scala.reflect.runtime.universe.{ MethodSymbol, TermName, Type, TypeTag, typeOf }
 
 package object analytics extends SQLImplicits {
 
@@ -35,6 +35,40 @@ package object analytics extends SQLImplicits {
         }
       }
       ds.select(traverseSchema(ds.schema.map(_ -> "")): _*)
+    }
+
+  }
+
+  implicit class EnhancedProduct[A <: Product: TypeTag](cc: A) {
+
+    case class FieldMetadata(fieldName: String, fieldType: Type, fieldValue: Any, fieldArrity: Int)
+
+    case class DisassembledCaseClass(private val fieldMetadata: Seq[FieldMetadata]) {
+
+      def buildCaseClassAs[B <: Product: TypeTag]: B = {
+        val companionObjectSymbol = currentMirror.symbolOf[B].companion.asModule
+        val instanceToReflect = currentMirror.reflectModule(companionObjectSymbol).instance
+        val instanceMirror = currentMirror.reflect(instanceToReflect)
+        val methodToReflect = TermName("apply")
+        val instanceTypeSignature = instanceMirror.symbol.typeSignature
+        val methodSymbol = instanceTypeSignature.member(methodToReflect).asMethod
+        val apply = instanceMirror.reflectMethod(methodSymbol)
+        apply(this.fieldMetadata.map(_.fieldValue): _*).asInstanceOf[B]
+      }
+
+      def map(f: FieldMetadata => FieldMetadata): DisassembledCaseClass = {
+        DisassembledCaseClass(this.fieldMetadata.map(f))
+      }
+
+      override def toString = this.fieldMetadata.toString
+
+    }
+
+    def getCaseMemberMetadata: DisassembledCaseClass = {
+      val metadata = typeOf[A].members.sorted.collect {
+        case m: MethodSymbol if m.isCaseAccessor => (m.returnType, m.name.toString)
+      }.zip(cc.productIterator.toSeq).zipWithIndex.map(a => FieldMetadata(a._1._1._2, a._1._1._1, a._1._2, a._2))
+      DisassembledCaseClass(metadata)
     }
 
   }
